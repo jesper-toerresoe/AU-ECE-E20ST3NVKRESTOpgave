@@ -1,0 +1,246 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using Hl7.Fhir.Model;
+using Hl7.Fhir.Rest;
+
+namespace HL7FHIRConsole31.Boundary
+{
+    class HL7FHIRR4Boundary
+    {
+        //https://www.hl7.org/fhir/administration-module.html
+        //https://www.hl7.org/fhir/patient.html
+        Patient pat;// = new Patient();
+        //Patient cpat;
+
+        //Identifier id; // = new Identifier();
+
+        //public HL7FHIRR4Boundary(Patient pat, Identifier id)
+        //{
+        //    this.pat = pat ?? throw new ArgumentNullException(nameof(pat));
+        //    this.id = id ?? throw new ArgumentNullException(nameof(id));
+        //}
+
+        [Obsolete]
+        public void HandlePatient()
+        {
+            var locpat = new Patient();
+            locpat.Active = true;
+            locpat.ActiveElement = new FhirBoolean(true);
+
+            var id = new Identifier();
+
+            id.System = "http://hl7.org/fhir/sid/us-ssn";
+            id.Value = "000-12-3456";
+
+            locpat.Identifier.Add(id);
+
+            var contact = new Patient.ContactComponent();
+            contact.Name = new HumanName();
+            contact.Name.Family = "Parks";
+
+            // setup other contact details
+
+            locpat.Contact.Add(contact);
+            locpat.Gender = AdministrativeGender.Male;
+
+            var deceased_date = new FhirDateTime("2015-04-23");
+            locpat.Deceased = deceased_date;
+            locpat.Deceased = new FhirBoolean(false);
+            locpat.Name.Add(new HumanName().WithGiven("Christopher").WithGiven("C.H.").AndFamily("Parks"));
+            HumanName hn = new HumanName();
+            hn.Text = "Peter Ole Sørensen";
+
+            var birthplace = new Extension();
+            birthplace.Url = "http://hl7.org/fhir/StructureDefinition/birthPlace";
+            birthplace.Value = new Address() { City = "Seattle" };
+            pat.Extension.Add(birthplace);
+
+            var birthtime = new Extension("http://hl7.org/fhir/StructureDefinition/patient-birthTime",
+                                           new FhirDateTime(1983, 4, 23, 7, 44));
+            pat.BirthDateElement.Extension.Add(birthtime);
+        }
+
+        public void Boundary_HL7FHIR_REST()
+        {
+            var client1 = new FhirClient("https://vonk.fire.ly");
+            var client = new FhirClient("https://aseecest3fhirservice.azurewebsites.net"); //https://aseecest3fhirservice.azurewebsites.net
+
+            //var k = new Fhir
+            //client.PreferredFormat = ResourceFormat.Unknown;
+            // client.UseFormatParam = true; //depends on the sever  format in url or in header (default)
+            // client.ReturnFullResource = false; //Give minimal response
+            client1.Timeout = 120000; // The timeout is set in milliseconds, with a default of 100000
+
+            client.Timeout = 120000; // The timeout is set in milliseconds, with a default of 100000
+
+            //var location_A = new Uri("https://vonk.fire.ly/Patient/58689c4c-daf4-450b-a1ca-7c1846bb65b5");
+            //var pat_A = client.Read<Patient>(location_A);
+            // or
+            //var pat_A = client.Read<Patient>("Patient/58689c4c-daf4-450b-a1ca-7c1846bb65b5");
+            ////var pat_A1 = client1.Read<Patient>("Patient/b46b6f29-fb93-4929-a760-ee722cb37f94");
+            ////var pat_A = client.Read<Patient>("Patient/acfc7929-c60b-4bf8-a0db-f8a6ca5dcd58");
+
+
+            //b46b6f29-fb93-4929-a760-ee722cb37f94
+
+            // Read a specific version of a Patient resource with technical id '32' and version id '4'
+            //var location_B = new Uri("http://vonk.fire.ly/Patient/32/_history/4");
+            //var pat_B = client.Read<Patient>(location_B);
+            // or
+            //var pat_B = client.Read<Patient>("Patient/32/_history/4");
+
+            //var pat_C = makeAPatient();//Go to makeAPAtient at study the code setting up at HL7 FHIR Patient!
+            //pat_C.Telecom = pat_A1.Telecom;
+            //pat_C.Contact[0].Telecom[0] = new ContactPoint(ContactPoint.ContactPointSystem.Phone, ContactPoint.ContactPointUse.Mobile, "1234");
+            //pat_C.Telecom[0] = new ContactPoint(ContactPoint.ContactPointSystem.Phone, ContactPoint.ContactPointUse.Mobile, "1234");
+            //var created_pat = client.Create(pat_C);
+
+            var ekgobs = makeAObservation();
+            ekgobs = client.Create(ekgobs);
+            var location_Obs = new Uri("https://aseecest3fhirservice.azurewebsites.net/Observation/" + ekgobs.Id);
+            var obs_A = client.Read<Observation>(location_Obs);
+            client.Update<Observation>(obs_A);
+            client.Delete(location_Obs);
+            //var ekgobs1 = makeAObservation();
+            //ekgobs1 = client1.Create(ekgobs1);
+            //var location_Obs1 = new Uri("https://vonk.fire.ly/Observation/"+ekgobs1.Id);
+            //var obs_A1 = client1.Read<Observation>(location_Obs1);
+            ////client1.Delete(obs_A1);
+            //client1.Delete(location_Obs1);
+
+
+            //"https://vonk.fire.ly/Observation/6d3cd8f6-c9ff-4357-891e-7774508f3a56"
+            //"https://vonk.fire.ly/Observation/6d3cd8f6-c9ff-4357-891e-7774508f3a56"
+
+            //After Create retrive the patient ID from created_pat and use the ID to retrieve the patient in Postman/AdvancedRESTClient
+            //client.Delete(created_pat);//Clean up the test. Check result in Postman/AdvancedRESTClient
+
+
+
+
+
+
+        }
+
+        private Patient makeAPatient()
+        {
+            // example Patient setup, fictional data only
+            var pat = new Patient();
+
+            var id = new Identifier();
+            id.System = "http://hl7.org/fhir/sid/us-ssn";
+            id.Value = "010119-4589";
+            pat.Identifier.Add(id);
+
+            var name = new HumanName().WithGiven("Christiane").WithGiven("A.H.").AndFamily("Julemand");
+            name.Prefix = new string[] { "Mrs." };
+            name.Use = HumanName.NameUse.Official;
+
+            var nickname = new HumanName();
+            nickname.Use = HumanName.NameUse.Nickname;
+            nickname.GivenElement.Add(new FhirString("Chrissy"));
+
+            pat.Name.Add(name);
+            pat.Name.Add(nickname);
+
+            pat.Gender = AdministrativeGender.Female;
+
+            pat.BirthDate = "2019-01-01";
+
+            var birthplace = new Extension();
+            birthplace.Url = "http://hl7.org/fhir/StructureDefinition/birthPlace";
+            birthplace.Value = new Address() { City = "Aarhus N" };
+            pat.Extension.Add(birthplace);
+
+            var birthtime = new Extension("http://hl7.org/fhir/StructureDefinition/patient-birthTime",
+                                           new FhirDateTime(2019, 1, 1, 0, 00));
+            pat.BirthDateElement.Extension.Add(birthtime);
+
+            var address = new Address()
+            {
+                Line = new string[] { "Finlandsgade 22" },
+                City = "Aarhus N",
+                State = "Jylland",
+                PostalCode = "8200",
+                Country = "Denmark"
+            };
+            pat.Address.Add(address);
+
+            var contact = new Patient.ContactComponent();
+            contact.Name = new HumanName();
+            contact.Name.Given = new string[] { "Knud" };
+            contact.Name.Family = "Julemand";
+            contact.Gender = AdministrativeGender.Female;
+            contact.Relationship.Add(new CodeableConcept("http://hl7.org/fhir/v2/0131", "N"));
+            contact.Telecom.Add(new ContactPoint(ContactPoint.ContactPointSystem.Phone, null, ""));
+            pat.Contact.Add(contact);
+
+            pat.Deceased = new FhirBoolean(false);
+
+            return pat;
+        }
+
+        private Observation makeAObservation()
+        {
+            List<int> rawdata = new List<int> { 2041, 2043, 2037, 2047, 2060, 2062, 2051, 2023, 2014, 2027, 2034, 2033, 2040, 2047, 2047, 2053, 2058, 2064, 2059, 2063, 2061, 2052, 2053, 2038, 1966, 1885, 1884, 2009, 2129, 2166, 2137, 2102 ,2086, 2077, 2067, 2067, 2060, 2059, 2062, 2062, 2060, 2057, 2045, 2047, 2057, 2054, 2042, 2029, 2027, 2018, 2007, 1995, 2001, 2012, 2024, 2039, 2068, 2092, 2111, 2125, 2131, 2148, 2137, 2138, 2128, 2128, 2115, 2099, 2097, 2096, 2101, 2101, 2091, 2073, 2076, 2077, 2084, 2081, 2088, 2092, 2070, 2069, 2074, 2077, 2075, 2068, 2064, 2060, 2062, 2074, 2075, 2074, 2075, 2063, 2058, 2058, 2064, 2064, 2070, 2074, 2067, 2060, 2062, 2063, 2061, 2059, 2048, 2052, 2049, 2048, 2051, 2059, 2059, 2066, 2077, 2073, };
+            var eob = new Observation();
+            eob.Id = "EKG-odjvbhofdjghodfgofg";
+            eob.Status = ObservationStatus.Final;
+            //eob.Text = new Narrative();
+            //eob.Text.Status = Narrative.NarrativeStatus.Generated;
+            //eob.Text.Div = "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative with Details</b></p><p><b>id</b>: ekg</p><p><b>status</b>: final</p><p><b>category</b>: Procedure <span>(Details : {http://terminology.hl7.org/CodeSystem/observation-category code 'procedure' = 'Procedure', given as 'Procedure'})</span></p><p><b>code</b>: MDC_ECG_ELEC_POTL <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131328' = '131328', given as 'MDC_ECG_ELEC_POTL'})</span></p><p><b>subject</b>: <a>P. van de Heuvel</a></p><p><b>effective</b>: 19/02/2015 9:30:35 AM</p><p><b>performer</b>: <a>A. Langeveld</a></p><p><b>device</b>: 12 lead EKG Device Metric</p><blockquote><p><b>component</b></p><p><b>code</b>: MDC_ECG_ELEC_POTL_I <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131329' = '131329', given as 'MDC_ECG_ELEC_POTL_I'})</span></p><p><b>value</b>: Origin: (system = '[not stated]' code null = 'null'), Period: 10, Factor: 1.612, Lower: -3300, Upper: 3300, Dimensions: 1, Data: 2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073</p></blockquote><blockquote><p><b>component</b></p><p><b>code</b>: MDC_ECG_ELEC_POTL_II <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131330' = '131330', given as 'MDC_ECG_ELEC_POTL_II'})</span></p><p><b>value</b>: Origin: (system = '[not stated]' code null = 'null'), Period: 10, Factor: 1.612, Lower: -3300, Upper: 3300, Dimensions: 1, Data: 2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073</p></blockquote><blockquote><p><b>component</b></p><p><b>code</b>: MDC_ECG_ELEC_POTL_III <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131389' = '131389', given as 'MDC_ECG_ELEC_POTL_III'})</span></p><p><b>value</b>: Origin: (system = '[not stated]' code null = 'null'), Period: 10, Factor: 1.612, Lower: -3300, Upper: 3300, Dimensions: 1, Data: 2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073</p></blockquote></div>";
+            eob.Category.Add(new CodeableConcept() { Coding = new List<Coding>() });
+            eob.Category[0].Coding.Add(new Coding() { Code = "procedure",System= "http://terminology.hl7.org/CodeSystem/observation-category", Display = "Procedure" });
+            eob.Code = new CodeableConcept();
+            eob.Code.Coding.Add(new Coding() { System = "urn:oid:2.16.840.1.113883.6.24", Code = "131328", Display = "MDC_ECG_ELEC_POTL" });
+            eob.Subject = new ResourceReference();
+            eob.Subject.Reference = "reference";
+            eob.Subject.Display = "P. van de Heuvel";
+            eob.Effective = new FhirDateTime("2015-02-19T09:30:35+01:00");
+            eob.Performer.Add(new ResourceReference() { Reference = "Practitioner/f005", Display = "A. Langeveld" });
+            eob.Device = new ResourceReference();
+            eob.Device.Display = "12 lead EKG Device Metric";
+            var m = new Observation.ComponentComponent();
+            m.Code = new CodeableConcept();
+            m.Code.Coding.Add(new Coding() { System = "urn:oid:2.16.840.1.113883.6.24", Code = "131389", Display = "MDC_ECG_ELEC_POTL_I" });
+            m.Value = new Hl7.Fhir.Model.SampledData() { Origin= new SimpleQuantity() {Value=2048 },Period= 10, Factor= (decimal)1.612 ,
+                                                         LowerLimit = -3300, UpperLimit=3300,Dimensions=1, 
+                                                         Data = "2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073"};
+            eob.Component.Add(m);
+            var m1 = new Observation.ComponentComponent();
+            m1.Code = new CodeableConcept();
+            m1.Code.Coding.Add(new Coding() { System = "urn:oid:2.16.840.1.113883.6.24", Code = "131329", Display = "MDC_ECG_ELEC_POTL_I" });
+            m1.Value = new Hl7.Fhir.Model.SampledData()
+            {
+                Origin = new SimpleQuantity() { Value = 2048 },
+                Period = 10,
+                Factor = (decimal)1.612,
+                LowerLimit = -3300,
+                UpperLimit = 3300,
+                Dimensions = 1,
+                Data = rawdata.ToString()
+                //Data = "2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073"
+            };
+            eob.Component.Add(m1);
+            var m2 = new Observation.ComponentComponent();
+            m2.Code = new CodeableConcept();
+            m2.Code.Coding.Add(new Coding() { System = "urn:oid:2.16.840.1.113883.6.24", Code = "131330", Display = "MDC_ECG_ELEC_POTL_I" });
+            m2.Value = new Hl7.Fhir.Model.SampledData()
+            {
+                Origin = new SimpleQuantity() { Value = 2048 },
+                Period = 10,
+                Factor = (decimal)1.612,
+                LowerLimit = -3300,
+                UpperLimit = 3300,
+                Dimensions = 1,
+                Data = "2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073"
+            };
+            eob.Component.Add(m2);
+
+            return eob;
+        }
+    }
+}
