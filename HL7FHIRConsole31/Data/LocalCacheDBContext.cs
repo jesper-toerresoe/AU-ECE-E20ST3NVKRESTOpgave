@@ -18,7 +18,7 @@ namespace HL7FHIRClient.Data
         public DbSet<BPMLocalSampleSequence> BPMLocalSampleSequences { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
-            => options.UseSqlite("Data Source=LocalCache.db");
+            => options.UseSqlite("Data Source=LocalCacheV1.db");
     }
 
 

@@ -30,7 +30,7 @@ namespace HL7FHIRClient
                 localdbcache.Add(completeseq); //Add the root object to db context
                 localdbcache.SaveChanges(); //Save root to database
                 //Start receiving sample sequence from RPI, here the data is generated 
-                for (var step = 0; step < 100; step++) //Simulation 1 hour in steps of second, though here truncated to 100 steps for speding up test
+                for (var step = 0; step < 100; step++) //Simulation 1 hour in steps of second, though here truncated to 100 steps for spedding up test
                 {                    
                     var samples = new BPMLocalSampleSequence() { NoBPMValues = 50, SequenceNo = step };
                     float[] data = new float[50];
@@ -40,7 +40,8 @@ namespace HL7FHIRClient
                     }
                     //https://stackoverflow.com/questions/4635769/how-do-i-convert-an-array-of-floats-to-a-byte-and-back
                     var rawdata = new byte[data.Length * 4]; //Four bytes per float
-                    Buffer.BlockCopy(data, 0, rawdata, 0, data.Length); //Make floats a BLOB 
+                    Buffer.BlockCopy(data, 0, rawdata, 0, data.Length * 4); //Make floats a BLOB 
+                    //Third param in BlockCopy is number of bytes to copy, that's the reason to data.length *4 !
                     samples.BPMSamples = rawdata; //Add data to child object
                     completeseq.SequenceOfBPMSamples.Add(samples); //Add child object to root object
                     //localdbcache.Add(samples); //Add child object to db context
