@@ -1,68 +1,100 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 using Hl7.Fhir.Model;
 using Hl7.Fhir.Rest;
+using HL7FHIRClient.Model;
 
-namespace HL7FHIRConsole31.Boundary
+
+namespace HL7FHIRClient.Boundary.BPM
 {
-    class HL7FHIRR4Boundary
+    public class HL7FHIRR4BPMClient
     {
-        //https://www.hl7.org/fhir/administration-module.html
-        //https://www.hl7.org/fhir/patient.html
-        Patient pat;// = new Patient();
-        //Patient cpat;
+        private FhirClient client;
 
-        //Identifier id; // = new Identifier();
-
-        //public HL7FHIRR4Boundary(Patient pat, Identifier id)
-        //{
-        //    this.pat = pat ?? throw new ArgumentNullException(nameof(pat));
-        //    this.id = id ?? throw new ArgumentNullException(nameof(id));
-        //}
-
-        [Obsolete]
-        public void HandlePatient()
+        public HL7FHIRR4BPMClient()
         {
-            var locpat = new Patient();
-            locpat.Active = true;
-            locpat.ActiveElement = new FhirBoolean(true);
-
-            var id = new Identifier();
-
-            id.System = "http://hl7.org/fhir/sid/us-ssn";
-            id.Value = "000-12-3456";
-
-            locpat.Identifier.Add(id);
-
-            var contact = new Patient.ContactComponent();
-            contact.Name = new HumanName();
-            contact.Name.Family = "Parks";
-
-            // setup other contact details
-
-            locpat.Contact.Add(contact);
-            locpat.Gender = AdministrativeGender.Male;
-
-            var deceased_date = new FhirDateTime("2015-04-23");
-            locpat.Deceased = deceased_date;
-            locpat.Deceased = new FhirBoolean(false);
-            locpat.Name.Add(new HumanName().WithGiven("Christopher").WithGiven("C.H.").AndFamily("Parks"));
-            HumanName hn = new HumanName();
-            hn.Text = "Peter Ole Sørensen";
-
-            var birthplace = new Extension();
-            birthplace.Url = "http://hl7.org/fhir/StructureDefinition/birthPlace";
-            birthplace.Value = new Address() { City = "Seattle" };
-            pat.Extension.Add(birthplace);
-
-            var birthtime = new Extension("http://hl7.org/fhir/StructureDefinition/patient-birthTime",
-                                           new FhirDateTime(1983, 4, 23, 7, 44));
-            pat.BirthDateElement.Extension.Add(birthtime);
+            client = new FhirClient("https://aseecest3fhirservice.azurewebsites.net"); //https://aseecest3fhirservice.azurewebsites.net
+            client.Timeout = 120000;
         }
 
+        public string CreateHl7FHIRBMPObservation(BPMCompleteSequence seqtocreate) //Signature may be changed
+        {
+            var saveobs = makeABPMObservation(seqtocreate);
+            saveobs = client.Create(saveobs);
+            return saveobs.Id;
+
+        }
+
+        public void ReadHL7FHIRVBPMObservation(string bpmobsid) //Signature may be changed
+        {
+            //Here goes your code
+        }
+
+        public void DeleteL7FHIRVBPMObservation(string bpmobsid) //Signature may be changed
+        {
+            //Here goes your code
+        }
+
+        public void UpdateL7FHIRVBPMObservation(string bpmobsid) //Signature may be changed
+        {
+            //Here goes your code
+        }
+
+        public static string ByteArrayToString(byte[] ba)
+        {
+            return BitConverter.ToString(ba).Replace("-", ""); //?? should "-" be removed
+        }
+
+        private Observation makeABPMObservation(BPMCompleteSequence seqtomake)
+        {
+            // Link https://stackoverflow.com/questions/311165/how-do-you-convert-a-byte-array-to-a-hexadecimal-string-and-vice-versa
+
+            string rawdata = new string("");
+            foreach (var sample in seqtomake.SequenceOfBPMSamples)
+            {
+                rawdata += ByteArrayToString(sample.BPMSamples);
+            }
+
+            var eob = new Observation();
+            eob.Id = seqtomake.NameOfObject;     //"EKG-odjvbhofdjghodfgofg"; //JRT Be careful when 
+            eob.Status = ObservationStatus.Final;
+            eob.Category.Add(new CodeableConcept() { Coding = new List<Coding>() });
+            eob.Category[0].Coding.Add(new Coding() { Code = "BPM Measurement", System = "http://terminology.hl7.org/CodeSystem/observation-category", Display = "Procedure" });
+            eob.Code = new CodeableConcept();
+            eob.Code.Coding.Add(new Coding() { System = "urn:oid:1.2.3.4.5.6", Code = "AUH131328", Display = "MDC_BPM_Phys_Sequence" });
+            eob.Subject = new ResourceReference();
+            eob.Subject.Reference = "AU-ECE-ST-E20";
+            eob.Subject.Display = "E20ST3PRJ3-NVK";
+            //eob.Effective = new FhirDateTime("2015-02-19T09:30:35+01:00");
+            //eob.Effective = new FhirDateTime(DateTime.Now);
+            eob.Effective = new FhirDateTime(seqtomake.StartTime); //JRT
+            eob.Performer.Add(new ResourceReference() { Reference = "Student/E20", Display = "Students from E20STS3NVK" });
+            eob.Device = new ResourceReference();
+            eob.Device.Display = "1 Transducer Device mmHG Metric";
+            var m = new Observation.ComponentComponent();
+            m.Code = new CodeableConcept();
+            m.Code.Coding.Add(new Coding() { System = "urn:oid:1.2.3.4.5.6", Code = "AUH131328", Display = "MDC_BPM_Phys_Sequence_1" });
+            m.Value = new Hl7.Fhir.Model.SampledData()
+            {
+                Origin = new SimpleQuantity { Value = 2048 },//??
+                Period = 3600, //??
+                Factor = (decimal)1.612,//??
+                LowerLimit = -3300,//??
+                UpperLimit = 3300,//??
+                Dimensions = 1,
+                Data = rawdata,
+            };
+            eob.Component.Add(m);
+
+
+            return eob;
+        }
+
+        //Code from here are only proto type code  get inspiration 
         public void Boundary_HL7FHIR_REST()
         {
             var client1 = new FhirClient("https://vonk.fire.ly");
@@ -75,35 +107,14 @@ namespace HL7FHIRConsole31.Boundary
             client1.Timeout = 120000; // The timeout is set in milliseconds, with a default of 100000
 
             client.Timeout = 120000; // The timeout is set in milliseconds, with a default of 100000
+                        
 
-            //var location_A = new Uri("https://vonk.fire.ly/Patient/58689c4c-daf4-450b-a1ca-7c1846bb65b5");
-            //var pat_A = client.Read<Patient>(location_A);
-            // or
-            //var pat_A = client.Read<Patient>("Patient/58689c4c-daf4-450b-a1ca-7c1846bb65b5");
-            ////var pat_A1 = client1.Read<Patient>("Patient/b46b6f29-fb93-4929-a760-ee722cb37f94");
-            ////var pat_A = client.Read<Patient>("Patient/acfc7929-c60b-4bf8-a0db-f8a6ca5dcd58");
-
-
-            //b46b6f29-fb93-4929-a760-ee722cb37f94
-
-            // Read a specific version of a Patient resource with technical id '32' and version id '4'
-            //var location_B = new Uri("http://vonk.fire.ly/Patient/32/_history/4");
-            //var pat_B = client.Read<Patient>(location_B);
-            // or
-            //var pat_B = client.Read<Patient>("Patient/32/_history/4");
-
-            //var pat_C = makeAPatient();//Go to makeAPAtient at study the code setting up at HL7 FHIR Patient!
-            //pat_C.Telecom = pat_A1.Telecom;
-            //pat_C.Contact[0].Telecom[0] = new ContactPoint(ContactPoint.ContactPointSystem.Phone, ContactPoint.ContactPointUse.Mobile, "1234");
-            //pat_C.Telecom[0] = new ContactPoint(ContactPoint.ContactPointSystem.Phone, ContactPoint.ContactPointUse.Mobile, "1234");
-            //var created_pat = client.Create(pat_C);
-
-            var ekgobs = makeAObservation();
-            ekgobs = client.Create(ekgobs);
-            var location_Obs = new Uri("https://aseecest3fhirservice.azurewebsites.net/Observation/" + ekgobs.Id);
-            var obs_A = client.Read<Observation>(location_Obs);
-            client.Update<Observation>(obs_A);
-            client.Delete(location_Obs);
+            //var ekgobloc = makeAObservation();
+            //var ekgobs = client.Create(ekgobloc);
+            //var location_Obs = new Uri("https://aseecest3fhirservice.azurewebsites.net/Observation/" + ekgobs.Id);
+            //var obs_A = client.Read<Observation>(location_Obs);
+            //client.Update<Observation>(obs_A);
+            //client.Delete(location_Obs);
             //var ekgobs1 = makeAObservation();
             //ekgobs1 = client1.Create(ekgobs1);
             //var location_Obs1 = new Uri("https://vonk.fire.ly/Observation/"+ekgobs1.Id);
@@ -118,74 +129,11 @@ namespace HL7FHIRConsole31.Boundary
             //After Create retrive the patient ID from created_pat and use the ID to retrieve the patient in Postman/AdvancedRESTClient
             //client.Delete(created_pat);//Clean up the test. Check result in Postman/AdvancedRESTClient
 
-
-
-
-
-
-        }
-
-        private Patient makeAPatient()
-        {
-            // example Patient setup, fictional data only
-            var pat = new Patient();
-
-            var id = new Identifier();
-            id.System = "http://hl7.org/fhir/sid/us-ssn";
-            id.Value = "010119-4589";
-            pat.Identifier.Add(id);
-
-            var name = new HumanName().WithGiven("Christiane").WithGiven("A.H.").AndFamily("Julemand");
-            name.Prefix = new string[] { "Mrs." };
-            name.Use = HumanName.NameUse.Official;
-
-            var nickname = new HumanName();
-            nickname.Use = HumanName.NameUse.Nickname;
-            nickname.GivenElement.Add(new FhirString("Chrissy"));
-
-            pat.Name.Add(name);
-            pat.Name.Add(nickname);
-
-            pat.Gender = AdministrativeGender.Female;
-
-            pat.BirthDate = "2019-01-01";
-
-            var birthplace = new Extension();
-            birthplace.Url = "http://hl7.org/fhir/StructureDefinition/birthPlace";
-            birthplace.Value = new Address() { City = "Aarhus N" };
-            pat.Extension.Add(birthplace);
-
-            var birthtime = new Extension("http://hl7.org/fhir/StructureDefinition/patient-birthTime",
-                                           new FhirDateTime(2019, 1, 1, 0, 00));
-            pat.BirthDateElement.Extension.Add(birthtime);
-
-            var address = new Address()
-            {
-                Line = new string[] { "Finlandsgade 22" },
-                City = "Aarhus N",
-                State = "Jylland",
-                PostalCode = "8200",
-                Country = "Denmark"
-            };
-            pat.Address.Add(address);
-
-            var contact = new Patient.ContactComponent();
-            contact.Name = new HumanName();
-            contact.Name.Given = new string[] { "Knud" };
-            contact.Name.Family = "Julemand";
-            contact.Gender = AdministrativeGender.Female;
-            contact.Relationship.Add(new CodeableConcept("http://hl7.org/fhir/v2/0131", "N"));
-            contact.Telecom.Add(new ContactPoint(ContactPoint.ContactPointSystem.Phone, null, ""));
-            pat.Contact.Add(contact);
-
-            pat.Deceased = new FhirBoolean(false);
-
-            return pat;
-        }
+        }     
 
         private Observation makeAObservation()
         {
-            List<int> rawdata = new List<int> { 2041, 2043, 2037, 2047, 2060, 2062, 2051, 2023, 2014, 2027, 2034, 2033, 2040, 2047, 2047, 2053, 2058, 2064, 2059, 2063, 2061, 2052, 2053, 2038, 1966, 1885, 1884, 2009, 2129, 2166, 2137, 2102 ,2086, 2077, 2067, 2067, 2060, 2059, 2062, 2062, 2060, 2057, 2045, 2047, 2057, 2054, 2042, 2029, 2027, 2018, 2007, 1995, 2001, 2012, 2024, 2039, 2068, 2092, 2111, 2125, 2131, 2148, 2137, 2138, 2128, 2128, 2115, 2099, 2097, 2096, 2101, 2101, 2091, 2073, 2076, 2077, 2084, 2081, 2088, 2092, 2070, 2069, 2074, 2077, 2075, 2068, 2064, 2060, 2062, 2074, 2075, 2074, 2075, 2063, 2058, 2058, 2064, 2064, 2070, 2074, 2067, 2060, 2062, 2063, 2061, 2059, 2048, 2052, 2049, 2048, 2051, 2059, 2059, 2066, 2077, 2073, };
+            List<int> rawdata = new List<int> { 2041, 2043, 2037, 2047, 2060, 2062, 2051, 2023, 2014, 2027, 2034, 2033, 2040, 2047, 2047, 2053, 2058, 2064, 2059, 2063, 2061, 2052, 2053, 2038, 1966, 1885, 1884, 2009, 2129, 2166, 2137, 2102, 2086, 2077, 2067, 2067, 2060, 2059, 2062, 2062, 2060, 2057, 2045, 2047, 2057, 2054, 2042, 2029, 2027, 2018, 2007, 1995, 2001, 2012, 2024, 2039, 2068, 2092, 2111, 2125, 2131, 2148, 2137, 2138, 2128, 2128, 2115, 2099, 2097, 2096, 2101, 2101, 2091, 2073, 2076, 2077, 2084, 2081, 2088, 2092, 2070, 2069, 2074, 2077, 2075, 2068, 2064, 2060, 2062, 2074, 2075, 2074, 2075, 2063, 2058, 2058, 2064, 2064, 2070, 2074, 2067, 2060, 2062, 2063, 2061, 2059, 2048, 2052, 2049, 2048, 2051, 2059, 2059, 2066, 2077, 2073, };
             var eob = new Observation();
             eob.Id = "EKG-odjvbhofdjghodfgofg";
             eob.Status = ObservationStatus.Final;
@@ -193,7 +141,7 @@ namespace HL7FHIRConsole31.Boundary
             //eob.Text.Status = Narrative.NarrativeStatus.Generated;
             //eob.Text.Div = "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p><b>Generated Narrative with Details</b></p><p><b>id</b>: ekg</p><p><b>status</b>: final</p><p><b>category</b>: Procedure <span>(Details : {http://terminology.hl7.org/CodeSystem/observation-category code 'procedure' = 'Procedure', given as 'Procedure'})</span></p><p><b>code</b>: MDC_ECG_ELEC_POTL <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131328' = '131328', given as 'MDC_ECG_ELEC_POTL'})</span></p><p><b>subject</b>: <a>P. van de Heuvel</a></p><p><b>effective</b>: 19/02/2015 9:30:35 AM</p><p><b>performer</b>: <a>A. Langeveld</a></p><p><b>device</b>: 12 lead EKG Device Metric</p><blockquote><p><b>component</b></p><p><b>code</b>: MDC_ECG_ELEC_POTL_I <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131329' = '131329', given as 'MDC_ECG_ELEC_POTL_I'})</span></p><p><b>value</b>: Origin: (system = '[not stated]' code null = 'null'), Period: 10, Factor: 1.612, Lower: -3300, Upper: 3300, Dimensions: 1, Data: 2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073</p></blockquote><blockquote><p><b>component</b></p><p><b>code</b>: MDC_ECG_ELEC_POTL_II <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131330' = '131330', given as 'MDC_ECG_ELEC_POTL_II'})</span></p><p><b>value</b>: Origin: (system = '[not stated]' code null = 'null'), Period: 10, Factor: 1.612, Lower: -3300, Upper: 3300, Dimensions: 1, Data: 2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073</p></blockquote><blockquote><p><b>component</b></p><p><b>code</b>: MDC_ECG_ELEC_POTL_III <span>(Details : {urn:oid:2.16.840.1.113883.6.24 code '131389' = '131389', given as 'MDC_ECG_ELEC_POTL_III'})</span></p><p><b>value</b>: Origin: (system = '[not stated]' code null = 'null'), Period: 10, Factor: 1.612, Lower: -3300, Upper: 3300, Dimensions: 1, Data: 2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073</p></blockquote></div>";
             eob.Category.Add(new CodeableConcept() { Coding = new List<Coding>() });
-            eob.Category[0].Coding.Add(new Coding() { Code = "procedure",System= "http://terminology.hl7.org/CodeSystem/observation-category", Display = "Procedure" });
+            eob.Category[0].Coding.Add(new Coding() { Code = "procedure", System = "http://terminology.hl7.org/CodeSystem/observation-category", Display = "Procedure" });
             eob.Code = new CodeableConcept();
             eob.Code.Coding.Add(new Coding() { System = "urn:oid:2.16.840.1.113883.6.24", Code = "131328", Display = "MDC_ECG_ELEC_POTL" });
             eob.Subject = new ResourceReference();
@@ -206,9 +154,16 @@ namespace HL7FHIRConsole31.Boundary
             var m = new Observation.ComponentComponent();
             m.Code = new CodeableConcept();
             m.Code.Coding.Add(new Coding() { System = "urn:oid:2.16.840.1.113883.6.24", Code = "131389", Display = "MDC_ECG_ELEC_POTL_I" });
-            m.Value = new Hl7.Fhir.Model.SampledData() { Origin= new SimpleQuantity() {Value=2048 },Period= 10, Factor= (decimal)1.612 ,
-                                                         LowerLimit = -3300, UpperLimit=3300,Dimensions=1, 
-                                                         Data = "2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073"};
+            m.Value = new Hl7.Fhir.Model.SampledData()
+            {
+                Origin = new SimpleQuantity { Value = 2048 },
+                Period = 10,
+                Factor = (decimal)1.612,
+                LowerLimit = -3300,
+                UpperLimit = 3300,
+                Dimensions = 1,
+                Data = "2041 2043 2037 2047 2060 2062 2051 2023 2014 2027 2034 2033 2040 2047 2047 2053 2058 2064 2059 2063 2061 2052 2053 2038 1966 1885 1884 2009 2129 2166 2137 2102 2086 2077 2067 2067 2060 2059 2062 2062 2060 2057 2045 2047 2057 2054 2042 2029 2027 2018 2007 1995 2001 2012 2024 2039 2068 2092 2111 2125 2131 2148 2137 2138 2128 2128 2115 2099 2097 2096 2101 2101 2091 2073 2076 2077 2084 2081 2088 2092 2070 2069 2074 2077 2075 2068 2064 2060 2062 2074 2075 2074 2075 2063 2058 2058 2064 2064 2070 2074 2067 2060 2062 2063 2061 2059 2048 2052 2049 2048 2051 2059 2059 2066 2077 2073"
+            };
             eob.Component.Add(m);
             var m1 = new Observation.ComponentComponent();
             m1.Code = new CodeableConcept();
