@@ -31,6 +31,7 @@ namespace HL7FHIRClient.Boundary.BPM
 
         public void ReadHL7FHIRVBPMObservation(string bpmobsid) //Signature may be changed
         {
+                       
             //Here goes your code
         }
 
@@ -69,16 +70,19 @@ namespace HL7FHIRClient.Boundary.BPM
             eob.Subject = new ResourceReference();
             eob.Subject.Reference = "AU-ECE-ST-E20";
             eob.Subject.Display = "E20ST3PRJ3-NVK";
+
             //eob.Effective = new FhirDateTime("2015-02-19T09:30:35+01:00");
             //eob.Effective = new FhirDateTime(DateTime.Now);
-            eob.Effective = new FhirDateTime(seqtomake.StartTime); //JRT
+            //For DateTime and DataTimeOffset se link https://docs.microsoft.com/en-us/dotnet/standard/datetime/converting-between-datetime-and-offset
+            DateTimeOffset dtoff = DateTime.SpecifyKind(seqtomake.StartTime, DateTimeKind.Utc);
+            eob.Effective = new FhirDateTime(dtoff); //JRT
             eob.Performer.Add(new ResourceReference() { Reference = "Student/E20", Display = "Students from E20STS3NVK" });
             eob.Device = new ResourceReference();
             eob.Device.Display = "1 Transducer Device mmHG Metric";
             var m = new Observation.ComponentComponent();
             m.Code = new CodeableConcept();
             m.Code.Coding.Add(new Coding() { System = "urn:oid:1.2.3.4.5.6", Code = "AUH131328", Display = "MDC_BPM_Phys_Sequence_1" });
-            m.Value = new Hl7.Fhir.Model.SampledData()
+            m.Value = new SampledData() 
             {
                 Origin = new SimpleQuantity { Value = 2048 },//??
                 Period = 3600, //??
@@ -88,7 +92,17 @@ namespace HL7FHIRClient.Boundary.BPM
                 Dimensions = 1,
                 Data = rawdata,
             };
-            eob.Component.Add(m);
+            eob.Component.Add(m);//Add the new data block to Observation
+            
+            //But then how to access the justed  in line 89  added SampleData Object again??
+            //Well remark that Observation.ComponentComponent.Value attribute is an Element class Just place cursor over m.Value
+            //Then important to notice is that SampleData class inherits the Element class! Why do you think this is the case?
+            //Now a type cast is needed to acces Values as a SampleData Class just as shoen in next line
+            var x = (SampledData)eob.Component[0].Value;
+            string d = x.Data;
+            //Lesson learned: As JSON does not cares about specific object type, class definition does not exist in JSON , in C# we do
+            //ned to make polymorph classes shaping more than one classe. Element class shape all needed HL7 FHIR classes in Componet,
+            //SampleData shape only one specific class but can be carried in a Elemet class
 
 
             return eob;

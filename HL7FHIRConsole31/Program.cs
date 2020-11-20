@@ -14,6 +14,7 @@ namespace HL7FHIRClient
         static void Main(string[] args)
         {
             Console.WriteLine("Test of HL7FHIR!");
+
             //Step 1 Get acces to a local SQLite database
             using (var localdbcache = new LocalCacheDBContext())
             {
@@ -30,8 +31,8 @@ namespace HL7FHIRClient
                 localdbcache.Add(completeseq); //Add the root object to db context
                 localdbcache.SaveChanges(); //Save root to database
                 //Start receiving sample sequence from RPI, here the data is generated 
-                for (var step = 0; step < 100; step++) //Simulation 1 hour in steps of second, though here truncated to 100 steps for spedding up test
-                {                    
+                for (var step = 0; step < 100 /*3600*/; step++) //Simulation 1 hour in steps of second, though here truncated to 100 steps for spedding up test
+                {
                     var samples = new BPMLocalSampleSequence() { NoBPMValues = 50, SequenceNo = step };
                     float[] data = new float[50];
                     for (var sampleno = 0; sampleno < 50; sampleno++)//Generating values
@@ -55,7 +56,7 @@ namespace HL7FHIRClient
                 var retrievedseq = localdbcache.BPMCompleteSequences.
                     Where(i => i.BPMCompleteSequenceId.Equals(retId)).
                     Include(c => c.SequenceOfBPMSamples).Single();
-                    //.ToListAsync();
+                //.ToListAsync();
 
                 //Then save sequence at 
                 var hl7fhirclient = new HL7FHIRR4BPMClient();
@@ -64,10 +65,12 @@ namespace HL7FHIRClient
 
                 //Step 4 Get a specfic Obesrvation from the public HL7FHIR database
                 //And convert the BPM data to useable datatypes
+                //"777886f0-3b63-43e4-9c61-4d8b8210a2c4"
+                hl7fhirclient.ReadHL7FHIRVBPMObservation(returnedid);
 
                 //Step 5 optional updates and deletes
 
-                
+
             }
         }
     }
