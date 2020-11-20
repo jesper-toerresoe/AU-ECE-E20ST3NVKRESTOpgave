@@ -97,12 +97,12 @@ namespace HL7FHIRClient.Boundary.BPM
             //But then how to access the justed  in line 89  added SampleData Object again??
             //Well remark that Observation.ComponentComponent.Value attribute is an Element class Just place cursor over m.Value
             //Then important to notice is that SampleData class inherits the Element class! Why do you think this is the case?
-            //Now a type cast is needed to acces Values as a SampleData Class just as shoen in next line
+            //Now a type cast is needed to acces Value as a SampleData Class just as showen in next line
             var x = (SampledData)eob.Component[0].Value;
             string d = x.Data;
-            //Lesson learned: As JSON does not cares about specific object type, class definition does not exist in JSON , in C# we do
-            //ned to make polymorph classes shaping more than one classe. Element class shape all needed HL7 FHIR classes in Componet,
-            //SampleData shape only one specific class but can be carried in a Elemet class
+            //Lesson learned: As JSON does not cares about specific object types, class definitions does not exist in JSON. In C# we do
+            //need to make polymorph classes shaping more than one class. Element class shapes all needed HL7 FHIR classes in Component,
+            //SampleData shapes only one specific class but can be carried in an Element class
 
 
             return eob;
